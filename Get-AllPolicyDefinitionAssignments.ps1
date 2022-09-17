@@ -16,37 +16,28 @@ function Get-AllPolicyDefinitionAssignments {
 
         $allSubscriptions = Get-AzSubscription -TenantId $TenantId -Verbose
         $allManagementGroups = Get-AzManagementGroup -Verbose
-        #$FilterAssignedBy = 'Security Center'
 
         foreach($item in $allManagementGroups){
             $allMgAssignments += @{
                 Name = $item.DisplayName
                 Id = $item.Id
-                Assignments = Get-AzPolicyAssignment -Scope $item.Id -WarningAction SilentlyContinue -Verbose #| Where-Object {$_.Properties.Metadata.assignedBy -ne $FilterAssignedBy}
+                Assignments = Get-AzPolicyAssignment -Scope $item.Id -WarningAction SilentlyContinue -Verbose
             }
         }
 
-
         foreach($item in $allSubscriptions){
-            $assignments = $null
             Select-AzSubscription $item -WarningAction SilentlyContinue -Verbose | Set-AzContext -Verbose | Out-Null
-            $assignments = Get-AzPolicyAssignment -Scope "/subscriptions/$($item.Id)" -IncludeDescendent -WarningAction SilentlyContinue -Verbose #| Where-Object {$_.Properties.Metadata.assignedBy -ne $FilterAssignedBy}
             $allSubAssignments += @{
                 Name = $item.Name
                 Id = $item.Id
-                Assignments = $assignments
+                Assignments = Get-AzPolicyAssignment -Scope "/subscriptions/$($item.Id)" -IncludeDescendent -WarningAction SilentlyContinue -Verbose
             }
         }
     }
     Process {
-        $allAssignedMgDefinitions = @()
-        $allAssignedSubDefinitions = @()
-
-
         foreach ($item in $allMgAssignments){
-            $allAssignedDefinitions = @()
             foreach($assignment in $item.Assignments){
-                $allAssignedDefinitions += $assignment.Properties.PolicyDefinitionId
+                [array]$allAssignedDefinitions += $assignment.Properties.PolicyDefinitionId
             }
             [array]$allAssignedMgDefinitions += @{
                 Name = $item.Name
@@ -58,7 +49,7 @@ function Get-AllPolicyDefinitionAssignments {
         foreach ($item in $allSubAssignments){
             $allAssignedDefinitions = @()
             foreach($assignment in $item.Assignments){
-                $allAssignedDefinitions += $assignment.Properties.PolicyDefinitionId
+                [array]$allAssignedDefinitions += $assignment.Properties.PolicyDefinitionId
             }
             [array]$allAssignedSubDefinitions += @{
                 Name = $item.Name
@@ -66,46 +57,42 @@ function Get-AllPolicyDefinitionAssignments {
                 Definitions = $allAssignedDefinitions | Select-Object -Unique
             }
         }
-    }
-    End {
-        
-        $subResults = @()
-        $mgResults = @()
-        
-        
+    
         foreach($item in $allAssignedMgDefinitions){
             $assignments = ($allMgAssignments | Where-Object {$_.Id -eq $item.Id}).Assignments
-            $matchingAssinments = @()
+            $matchingAssignments = @()
             foreach($definitionId in $item.Definitions){
-                $matchingAssinments += @{
+                $matchingAssignments += @{
                     DefinitionId = $definitionId
                     Assignments = @(($assignments | Where-Object {$_.Properties.PolicyDefinitionId -eq $definitionId}).ResourceId)
                 }
             }
         
-            $mgResults += @{
+            [array]$mgResults += @{
                 Name = $item.Name
                 Id = $item.Id
-                Policies = $matchingAssinments
+                Policies = $matchingAssignments
             }
         }
         
         foreach($item in $allAssignedSubDefinitions){
             $assignments = ($allSubAssignments | Where-Object {$_.Id -eq $item.Id}).Assignments
-            $matchingAssinments = @()
+            $matchingAssignments = @()
             foreach($definitionId in $item.Definitions){
-                $matchingAssinments += @{
-                    DefinitionId = $definitionId
-                    Assignments = @(($assignments | Where-Object {$_.Properties.PolicyDefinitionId -eq $definitionId}).ResourceId)
+                    $matchingAssignments += @{
+                        DefinitionId = $definitionId
+                        Assignments = @(($assignments | Where-Object {$_.Properties.PolicyDefinitionId -eq $definitionId}).ResourceId)
+                    }
                 }
-            }
         
-            $subResults += @{
+            [array]$subResults += @{
                 Name = $item.Name
                 Id = $item.Id
-                Policies = $matchingAssinments
+                Policies = $matchingAssignments
             }
         }
+    }
+    End {
         
         foreach($item in $mgResults){
             $definitionCount = $item.Policies.Count
@@ -117,7 +104,7 @@ function Get-AllPolicyDefinitionAssignments {
                     Write-Verbose "[AssignmentId] $($assignment)"
                 }
             }
-            Write-Verbose "Found '$definitionCount' total definitions in Management Group '$($item.Name)' with Id '$($item.Id)'"
+            Write-Verbose "Found '$definitionCount' unique definitions with an active assignmentin Management Group '$($item.Name)' with Id '$($item.Id)'"
             Write-Verbose "Found '$assignmentCount' total assignments in Management Group '$($item.Name)' with Id '$($item.Id)'"
         }
         
@@ -131,7 +118,7 @@ function Get-AllPolicyDefinitionAssignments {
                     Write-Verbose "[AssignmentId] $($assignment)"
                 }
             }
-            Write-Verbose "Found '$definitionCount' total definitions in Subscription '$($item.Name)' with Id '$($item.Id)'"
+            Write-Verbose "Found '$definitionCount' unique definitions with an active assignment in Subscription '$($item.Name)' with Id '$($item.Id)'"
             Write-Verbose "Found '$assignmentCount' total assignments in Subscription '$($item.Name)' with Id '$($item.Id)'"
         }
         
@@ -140,9 +127,9 @@ function Get-AllPolicyDefinitionAssignments {
             subscriptions = $subResults
         }
     }
-
 }
 
+
 Connect-AzAccount
-$TenandId = ''
-$result = Get-AllPolicyDefinitionAssignments -TenantId $TenandId -Verbose
+$TenantId = ''
+$result = Get-AllPolicyDefinitionAssignments -TenantId $TenantId -Verbose
