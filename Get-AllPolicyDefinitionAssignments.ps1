@@ -144,6 +144,6 @@ function Get-AllPolicyDefinitionAssignments {
 
 }
 
-
+Connect-AzAccount
 $TenandId = ''
 $result = Get-AllPolicyDefinitionAssignments -TenantId $TenandId -Verbose
