@@ -48,10 +48,10 @@ function Get-AllPolicyDefinitionAssignments {
             foreach($assignment in $item.Assignments){
                 $allAssignedDefinitions += $assignment.Properties.PolicyDefinitionId
             }
-            $allAssignedMgDefinitions += @{
+            [array]$allAssignedMgDefinitions += @{
                 Name = $item.Name
                 Id = $item.Id
-                Definitions = $allAssignedDefinitions
+                Definitions = $allAssignedDefinitions | Select-Object -Unique
             }
         }
 
@@ -60,12 +60,11 @@ function Get-AllPolicyDefinitionAssignments {
             foreach($assignment in $item.Assignments){
                 $allAssignedDefinitions += $assignment.Properties.PolicyDefinitionId
             }
-            $allAssignedSubDefinitions += @{
+            [array]$allAssignedSubDefinitions += @{
                 Name = $item.Name
                 Id = $item.Id
-                Definitions = $allAssignedDefinitions
+                Definitions = $allAssignedDefinitions | Select-Object -Unique
             }
-            
         }
     }
     End {
